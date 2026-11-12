@@ -28,6 +28,12 @@ public sealed class GameEntry
     public string ClientExecutable { get; set; } = "";
     public string ServerExecutable { get; set; } = "";
 
+    /// <summary>
+    /// 启动客户端时附加的命令行参数，原样拼接到启动程序之后。
+    /// 含空格的单个参数需要用英文双引号包起来；服务端启动不使用它。
+    /// </summary>
+    public string Arguments { get; set; } = "";
+
     /// <summary>封面在数据目录 covers 文件夹中的文件名。</summary>
     public string CoverFile { get; set; } = "";
 

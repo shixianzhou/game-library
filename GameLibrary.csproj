@@ -14,8 +14,8 @@
     <Product>本地游戏库</Product>
     <AssemblyTitle>本地游戏库</AssemblyTitle>
     <Description>本地游戏收藏与一键启动工具</Description>
-    <Version>1.1.0</Version>
-    <FileVersion>1.1.0.0</FileVersion>
+    <Version>1.2.0</Version>
+    <FileVersion>1.2.0.0</FileVersion>
     <Copyright>Copyright © 2026</Copyright>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>

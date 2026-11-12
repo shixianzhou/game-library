@@ -307,6 +307,15 @@
                                     </StackPanel>
                                 </Border>
                             </Grid>
+
+                            <Border Height="1" Background="#282D20" Margin="0,14,0,14" />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="启动参数（可选）"
+                                       Margin="0,0,0,7" />
+                            <TextBox x:Name="ArgumentsBox" Style="{StaticResource InputTextBox}"
+                                     ToolTip="原样附加在客户端启动程序之后，例如 -windowed &quot;D:\日志&quot;" />
+                            <TextBlock Style="{StaticResource FieldHint}" Margin="0,5,0,0"
+                                       Text="选填，只传给客户端。参数会原样拼在启动程序后面，含空格的参数请用英文双引号包起来，例如 &quot;我是参数1&quot; &quot;我是参数2&quot;。" />
                         </StackPanel>
                     </Border>
 

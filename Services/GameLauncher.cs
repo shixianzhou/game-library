@@ -43,6 +43,11 @@ public static class GameLauncher
                 WorkingDirectory = Path.GetDirectoryName(executable) ?? directory,
                 UseShellExecute = true,
             };
+
+            // 参数只作用于客户端；服务端启动保持干净的命令行。
+            var arguments = server ? "" : game.Arguments;
+            if (!string.IsNullOrWhiteSpace(arguments)) startInfo.Arguments = arguments.Trim();
+
             Process.Start(startInfo);
             var action = server ? "正在启动后台服务" : "正在启动游戏";
             return new(true, executable, $"{action} · {Path.GetFileName(executable)}");

@@ -54,6 +54,7 @@ public partial class AddGameDialog : Window
         ClientExecutableBox.Text = _draft.ClientExecutable;
         ServerDirectoryBox.Text = _draft.ServerDirectory;
         ServerExecutableBox.Text = _draft.ServerExecutable;
+        ArgumentsBox.Text = _draft.Arguments;
 
         _previewCoverPath = _draft.CoverPathResolved;
         CoverPreview.GameName = string.IsNullOrWhiteSpace(_draft.Name) ? "新游戏" : _draft.Name;
@@ -341,6 +342,7 @@ public partial class AddGameDialog : Window
 
         result.IsSeparated = separated;
         result.Name = name;
+        result.Arguments = ArgumentsBox.Text.Trim();
         result.Description = DescriptionBox.Text.Trim();
         result.Author = AuthorBox.Text.Trim();
         result.Version = VersionBox.Text.Trim();
