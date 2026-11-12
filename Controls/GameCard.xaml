@@ -1,0 +1,183 @@
+<UserControl x:Class="GameLibrary.Controls.GameCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:GameLibrary.Controls"
+             x:Name="Root"
+             Background="Transparent"
+             MouseEnter="OnMouseEnter"
+             MouseLeave="OnMouseLeave"
+             MouseLeftButtonDown="OnMouseLeftButtonDown">
+    <Grid>
+        <Border x:Name="CardBorder"
+                Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="10"
+                ClipToBounds="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="140" />
+                </Grid.RowDefinitions>
+
+                <controls:ArtworkView x:Name="Art"
+                                      Grid.Row="0"
+                                      GameName="{Binding Name}"
+                                      SeedText="{Binding Id}"
+                                      ImagePath="{Binding CoverPathResolved}"
+                                      TopCornerRadius="10" />
+
+                <Border x:Name="InfoPanel" Grid.Row="1" Background="#080A06" CornerRadius="0,0,10,10" Padding="16,13,16,11">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="{Binding Name}"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource TextBrush}"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="0,0,0,4" />
+
+                        <TextBlock Grid.Row="1"
+                                   Text="{Binding DescriptionText}"
+                                   FontSize="11.5"
+                                   LineHeight="17"
+                                   Foreground="{StaticResource MutedBrush}"
+                                   TextWrapping="Wrap"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxHeight="35"
+                                   Margin="0,0,0,8" />
+
+                        <ItemsControl Grid.Row="2" ItemsSource="{Binding Tags}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#1A1E14"
+                                            BorderBrush="#343A2A"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="6,2"
+                                            Margin="0,0,5,0">
+                                        <TextBlock Text="{Binding}"
+                                                   FontSize="10"
+                                                   Foreground="#A9AD9A" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </Border>
+
+                <Border x:Name="Shade"
+                        Grid.RowSpan="2"
+                        CornerRadius="0"
+                        ClipToBounds="True"
+                        Visibility="Collapsed"
+                        Opacity="1"
+                        Background="#B0050603"
+                        IsHitTestVisible="False">
+                    <Border.RenderTransform>
+                        <TranslateTransform x:Name="ShadeTransform" Y="140" />
+                    </Border.RenderTransform>
+                </Border>
+
+                <Grid x:Name="ActionsPanel" Grid.RowSpan="2" Background="Transparent" Visibility="Collapsed">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <Button Style="{StaticResource CardLaunchButton}" HorizontalAlignment="Center" Click="OnLaunchClick">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="&#xE768;"
+                                           FontFamily="{StaticResource IconFont}"
+                                           FontSize="11"
+                                           Margin="0,0,7,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                <TextBlock Text="启动游戏"
+                                           FontSize="13.5"
+                                           FontWeight="Bold"
+                                           VerticalAlignment="Center"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="ServerButton"
+                                Style="{StaticResource CardServerButton}"
+                                HorizontalAlignment="Center"
+                                Margin="0,10,0,0"
+                                Click="OnServerClick">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="&#xE7B8;"
+                                           FontFamily="{StaticResource IconFont}"
+                                           FontSize="12"
+                                           Margin="0,0,7,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                <TextBlock Text="启动后台"
+                                           FontSize="12.5"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <Border x:Name="HoverRing"
+                        Grid.RowSpan="2"
+                        BorderBrush="{DynamicResource AppAccentBrush}"
+                        BorderThickness="1.5"
+                        CornerRadius="10"
+                        IsHitTestVisible="False"
+                        Opacity="0" />
+            </Grid>
+        </Border>
+
+        <Grid.ContextMenu>
+            <ContextMenu x:Name="CardMenu">
+                <MenuItem x:Name="MenuPin" Header="置顶" Click="OnMenuPin">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE718;" FontFamily="{StaticResource IconFont}" FontSize="12" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="启动游戏" Click="OnMenuLaunch">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" FontSize="12" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem x:Name="MenuLaunchServer" Header="启动后台" Click="OnMenuLaunchServer">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE7B8;" FontFamily="{StaticResource IconFont}" FontSize="12" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="编辑信息" Click="OnMenuEdit">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE70F;" FontFamily="{StaticResource IconFont}" FontSize="12" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem x:Name="MenuOpenFolder" Header="打开游戏目录" Click="OnMenuOpenFolder">
+                    <MenuItem.Icon>
+                        <Path Data="{StaticResource FolderGeometry}" Width="14" Height="14"
+                              Stretch="Uniform" Stroke="#D8DCCB" StrokeThickness="1.3"
+                              StrokeLineJoin="Round" HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="从库中移除" Click="OnMenuDelete" Foreground="#E37B72">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE74D;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="#E37B72" />
+                    </MenuItem.Icon>
+                </MenuItem>
+            </ContextMenu>
+        </Grid.ContextMenu>
+    </Grid>
+</UserControl>
+

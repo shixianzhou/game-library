@@ -1,0 +1,109 @@
+name: 构建发布版
+
+# 推送 v* 标签时自动构建三个发布包并创建 GitHub Release；
+# 也可以在 Actions 页面手动运行，只生成可下载的构建产物，不创建 Release。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  release:
+    name: 构建并发布
+    runs-on: windows-latest
+    steps:
+      - name: 检出源码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 安装 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: 确定版本号
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $version = $env:GITHUB_REF_NAME
+          } else {
+            $raw = Get-Content .\GameLibrary.csproj -Raw -Encoding UTF8
+            if ($raw -notmatch '<Version>([^<]+)</Version>') { throw 'Cannot read <Version> from csproj' }
+            $version = $Matches[1].Trim()
+          }
+          $version = $version.Trim().TrimStart('v')
+          if (-not $version) { throw 'Cannot determine version' }
+          "number=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $version"
+
+      - name: 发布无依赖版（自包含单文件）
+        shell: pwsh
+        run: |
+          dotnet publish .\GameLibrary.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -o .\dist-self-contained
+          if ($LASTEXITCODE -ne 0) { throw 'Self-contained publish failed' }
+
+      - name: 发布依赖版（框架依赖）
+        shell: pwsh
+        run: |
+          dotnet publish .\GameLibrary.csproj -c Release -r win-x64 --self-contained false `
+            -p:PublishSingleFile=true `
+            -o .\dist-framework-dependent
+          if ($LASTEXITCODE -ne 0) { throw 'Framework-dependent publish failed' }
+
+      - name: 打包发布文件
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.number }}'
+          $out = '.\release'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Remove-Item (Join-Path $out '*.zip') -Force -ErrorAction SilentlyContinue
+
+          $editions = @(
+            @{ Name = 'self-contained'; Dir = '.\dist-self-contained'; Readme = 'release-readme-self-contained.txt' },
+            @{ Name = 'framework-dependent'; Dir = '.\dist-framework-dependent'; Readme = 'release-readme-framework-dependent.txt' }
+          )
+          foreach ($edition in $editions) {
+            Copy-Item (Join-Path 'docs' $edition.Readme) (Join-Path $edition.Dir 'README.txt') -Force
+            Compress-Archive -Path (Join-Path $edition.Dir '*') `
+              -DestinationPath (Join-Path $out "GameLibrary-$version-win-x64-$($edition.Name).zip") -Force
+          }
+
+          git archive --format=zip --prefix="game-library-$version/" `
+            -o (Join-Path $out "GameLibrary-$version-source.zip") HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Source archive failed' }
+
+          Get-ChildItem $out | Select-Object Name, Length | Format-Table -AutoSize
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameLibrary-${{ steps.version.outputs.number }}
+          path: release/*.zip
+          if-no-files-found: error
+
+      - name: 创建 GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $assets = Get-ChildItem .\release\*.zip | ForEach-Object { $_.FullName }
+          gh release create $tag $assets `
+            --title "GameLibrary $tag" `
+            --generate-notes `
+            --verify-tag
