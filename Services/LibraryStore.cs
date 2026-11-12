@@ -61,6 +61,61 @@ public sealed class LibraryStore
         File.Move(temp, ConfigPath, true);
     }
 
+    /// <summary>读取任意位置的 library.json；失败时返回 null 并给出原因。</summary>
+    public LibraryData? TryReadConfig(string path, out string? error)
+    {
+        error = null;
+        try
+        {
+            var json = File.ReadAllText(path, Encoding.UTF8);
+            var data = JsonSerializer.Deserialize<LibraryData>(json, JsonOptions);
+            if (data?.Games == null)
+            {
+                error = "文件里没有游戏列表，可能不是游戏库配置文件。";
+                return null;
+            }
+            Normalize(data);
+            return data;
+        }
+        catch (Exception ex)
+        {
+            error = "读取失败：" + ex.Message;
+            return null;
+        }
+    }
+
+    /// <summary>备份当前配置，返回备份文件的完整路径（当前没有配置文件时返回空串）。</summary>
+    public string BackupConfig()
+    {
+        if (!File.Exists(ConfigPath)) return "";
+        var backup = ConfigPath + ".backup-" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".json";
+        File.Copy(ConfigPath, backup, true);
+        return backup;
+    }
+
+    /// <summary>把另一个数据目录里的 covers 复制过来，返回复制的张数（同名文件跳过）。</summary>
+    public int CopyCoversFrom(string sourceCoversDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(sourceCoversDirectory) || !Directory.Exists(sourceCoversDirectory)) return 0;
+        Directory.CreateDirectory(CoversDirectory);
+        var copied = 0;
+        foreach (var file in Directory.EnumerateFiles(sourceCoversDirectory))
+        {
+            var destination = Path.Combine(CoversDirectory, Path.GetFileName(file));
+            if (File.Exists(destination)) continue;
+            try
+            {
+                File.Copy(file, destination, false);
+                copied++;
+            }
+            catch
+            {
+                // 单张封面复制失败不影响整体导入。
+            }
+        }
+        return copied;
+    }
+
     public string ImportCover(Guid gameId, string sourcePath)
     {
         Directory.CreateDirectory(CoversDirectory);
@@ -139,6 +194,8 @@ public sealed class LibraryStore
             game.Description ??= "";
             game.Author ??= "";
             game.Version ??= "";
+            game.Highlight = (game.Highlight ?? "").Trim();
+            if (game.Highlight.Length > 8) game.Highlight = game.Highlight[..8];
             game.GameDirectory ??= "";
             game.ClientDirectory ??= "";
             game.ServerDirectory ??= "";

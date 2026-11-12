@@ -160,17 +160,24 @@ public partial class MainWindow : Window
         {
             var border = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0x1D, 0x22, 0x17)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0x3A, 0x41, 0x30)),
+                Background = new SolidColorBrush(tag.IsHighlight
+                    ? Color.FromRgb(0x21, 0x2A, 0x15)
+                    : Color.FromRgb(0x1D, 0x22, 0x17)),
+                BorderBrush = new SolidColorBrush(tag.IsHighlight
+                    ? Color.FromRgb(0x8F, 0xAF, 0x52)
+                    : Color.FromRgb(0x3A, 0x41, 0x30)),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(4),
+                CornerRadius = new CornerRadius(tag.IsHighlight ? 9 : 4),
                 Padding = new Thickness(8, 3, 8, 3),
                 Margin = new Thickness(0, 0, 6, 0),
                 Child = new TextBlock
                 {
-                    Text = tag,
+                    Text = tag.Text,
                     FontSize = 10.5,
-                    Foreground = new SolidColorBrush(Color.FromRgb(0xB9, 0xBC, 0xA9)),
+                    FontWeight = tag.IsHighlight ? FontWeights.SemiBold : FontWeights.Normal,
+                    Foreground = new SolidColorBrush(tag.IsHighlight
+                        ? Color.FromRgb(0xDC, 0xE8, 0xBC)
+                        : Color.FromRgb(0xB9, 0xBC, 0xA9)),
                 },
             };
             pills.Add(border);
@@ -918,6 +925,74 @@ public partial class MainWindow : Window
     }
 
     private void OnMenuAddGame(object sender, RoutedEventArgs e) => AddGame();
+
+    private void OnMenuImportConfig(object sender, RoutedEventArgs e) => ImportConfig();
+
+    private void ImportConfig()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "导入配置",
+            Filter = "游戏库配置 (library.json)|library.json|JSON 文件 (*.json)|*.json|所有文件 (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false,
+        };
+        if (dialog.ShowDialog(this) != true) return;
+
+        var imported = _store.TryReadConfig(dialog.FileName, out var error);
+        if (imported == null)
+        {
+            AppDialog.ShowInfo(this, "导入失败", error ?? "无法读取这个文件。");
+            return;
+        }
+
+        var importedCount = imported.Games.Count;
+        if (importedCount == 0)
+        {
+            AppDialog.ShowInfo(this, "导入失败", "这个配置里没有游戏。");
+            return;
+        }
+
+        var currentCount = _data.Games.Count;
+        var confirmed = AppDialog.Confirm(this, "导入配置",
+            $"将用「{Path.GetFileName(dialog.FileName)}」里的 {importedCount} 个游戏替换当前库" +
+            (currentCount > 0 ? $"（现有 {currentCount} 个）" : "") + "。\n\n" +
+            "当前配置会先备份到数据目录，封面也会一并复制过来。",
+            "导入");
+        if (!confirmed) return;
+
+        try
+        {
+            var backup = _store.BackupConfig();
+            var sourceCovers = Path.Combine(Path.GetDirectoryName(dialog.FileName) ?? "", "covers");
+            var copiedCovers = _store.CopyCoversFrom(sourceCovers);
+
+            // 导入的配置可能引用了不存在的封面：这类封面直接清掉，按普通条目导入，
+            // 否则卡片会指向一个永远找不到的文件。
+            foreach (var game in imported.Games)
+            {
+                if (string.IsNullOrWhiteSpace(game.CoverFile)) continue;
+                var coverPath = Path.Combine(_store.CoversDirectory, Path.GetFileName(game.CoverFile));
+                if (!File.Exists(coverPath)) game.CoverFile = "";
+            }
+
+            _store.Save(imported);
+            _data = _store.Load(out var warning);
+            if (!string.IsNullOrWhiteSpace(warning)) ShowToast(warning, true);
+
+            _featured = null;
+            RefreshAll();
+            ApplyBackground();
+            ShowToast(copiedCovers > 0
+                ? $"已导入 {importedCount} 个游戏，复制 {copiedCovers} 张封面"
+                : $"已导入 {importedCount} 个游戏");
+            if (!string.IsNullOrWhiteSpace(backup)) Debug.WriteLine("已备份原配置：" + backup);
+        }
+        catch (Exception ex)
+        {
+            AppDialog.ShowInfo(this, "导入失败", ex.Message);
+        }
+    }
     private void OnMenuSettings(object sender, RoutedEventArgs e) => OpenSettings();
     private void OnMenuOpenData(object sender, RoutedEventArgs e) => OpenDataDirectory();
 

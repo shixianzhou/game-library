@@ -1,5 +1,7 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 
@@ -14,9 +16,51 @@ public partial class AppDialog : Window
     private bool _confirmed;
     private bool _infoOnly;
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hWnd, out WindowRect rect);
+
     private AppDialog()
     {
         InitializeComponent();
+    }
+
+    /// <summary>
+    /// 让弹窗窗口正好铺满宿主窗口在屏幕上的实际范围。
+    /// 最大化时宿主会超出工作区几个像素，用 <see cref="Window.Left"/> / <see cref="Window.ActualWidth"/>
+    /// 推算会漏掉边缘，所以直接取窗口句柄的物理矩形，再按 DPI 换算成 WPF 单位。
+    /// </summary>
+    private static void FitToOwner(Window dialog, Window owner)
+    {
+        var hwnd = new WindowInteropHelper(owner).Handle;
+        if (hwnd != IntPtr.Zero && GetWindowRect(hwnd, out var rect))
+        {
+            var dpi = VisualTreeHelper.GetDpi(owner);
+            var scaleX = dpi.DpiScaleX <= 0 ? 1 : dpi.DpiScaleX;
+            var scaleY = dpi.DpiScaleY <= 0 ? 1 : dpi.DpiScaleY;
+            var width = (rect.Right - rect.Left) / scaleX;
+            var height = (rect.Bottom - rect.Top) / scaleY;
+
+            dialog.WindowStartupLocation = WindowStartupLocation.Manual;
+            dialog.Left = rect.Left / scaleX;
+            dialog.Top = rect.Top / scaleY;
+            dialog.Width = Math.Max(width, 480);
+            dialog.Height = Math.Max(height, 320);
+            return;
+        }
+
+        dialog.Width = Math.Max(owner.ActualWidth, 480);
+        dialog.Height = Math.Max(owner.ActualHeight, 320);
+        dialog.Left = owner.Left;
+        dialog.Top = owner.Top;
     }
 
     private static AppDialog Create(
@@ -32,11 +76,8 @@ public partial class AppDialog : Window
         {
             Owner = owner,
             Title = title,
-            Width = Math.Max(owner.ActualWidth, 480),
-            Height = Math.Max(owner.ActualHeight, 320),
-            Left = owner.Left,
-            Top = owner.Top,
         };
+        FitToOwner(dialog, owner);
         dialog.TitleText.Text = title;
         dialog.MessageText.Text = message;
         dialog.ConfirmButton.Content = confirmText;

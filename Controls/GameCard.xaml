@@ -60,15 +60,37 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#1A1E14"
-                                            BorderBrush="#343A2A"
-                                            BorderThickness="1"
+                                    <Border Padding="6,2"
+                                            Margin="0,0,5,0"
                                             CornerRadius="4"
-                                            Padding="6,2"
-                                            Margin="0,0,5,0">
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="10"
-                                                   Foreground="#A9AD9A" />
+                                            BorderThickness="1">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#1A1E14" />
+                                                <Setter Property="BorderBrush" Value="#343A2A" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsHighlight}" Value="True">
+                                                        <Setter Property="Background" Value="#212A15" />
+                                                        <Setter Property="BorderBrush" Value="#8FAF52" />
+                                                        <Setter Property="CornerRadius" Value="9" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding Text}"
+                                                   FontSize="10">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#A9AD9A" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsHighlight}" Value="True">
+                                                            <Setter Property="Foreground" Value="#DCE8BC" />
+                                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

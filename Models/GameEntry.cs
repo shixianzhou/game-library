@@ -11,6 +11,9 @@ public sealed class GameEntry
     public string Author { get; set; } = "";
     public string Version { get; set; } = "";
 
+    /// <summary>重点标签，最多 8 个字符，显示在卡片标签的最前面。</summary>
+    public string Highlight { get; set; } = "";
+
     /// <summary>不分离时使用的游戏目录。</summary>
     public string GameDirectory { get; set; } = "";
 
@@ -58,19 +61,23 @@ public sealed class GameEntry
         : Description.Trim();
 
     [JsonIgnore]
-    public IReadOnlyList<string> Tags
+    public bool HasHighlight => !string.IsNullOrWhiteSpace(Highlight);
+
+    [JsonIgnore]
+    public IReadOnlyList<GameTag> Tags
     {
         get
         {
-            var tags = new List<string>(3);
-            if (!string.IsNullOrWhiteSpace(Author)) tags.Add(Author.Trim());
+            var tags = new List<GameTag>(4);
+            if (!string.IsNullOrWhiteSpace(Highlight)) tags.Add(new GameTag(Highlight.Trim(), true));
+            if (!string.IsNullOrWhiteSpace(Author)) tags.Add(new GameTag(Author.Trim(), false));
             if (!string.IsNullOrWhiteSpace(Version))
             {
                 var version = Version.Trim();
-                tags.Add(version.StartsWith('v') || version.StartsWith('V') ? version : "v" + version);
+                tags.Add(new GameTag(version.StartsWith('v') || version.StartsWith('V') ? version : "v" + version, false));
             }
-            tags.Add(IsSeparated ? "客户端 + 服务端" : "本地游戏");
-            return tags.Take(3).ToList();
+            tags.Add(new GameTag(IsSeparated ? "客户端 + 服务端" : "本地游戏", false));
+            return tags.Take(4).ToList();
         }
     }
 
@@ -103,4 +110,19 @@ public sealed class GameEntry
     }
 
     public GameEntry Clone() => (GameEntry)MemberwiseClone();
+}
+
+/// <summary>卡片和主版下方显示的一枚标签；重点标签用更深的描边突出。</summary>
+public sealed class GameTag
+{
+    public GameTag() { }
+
+    public GameTag(string text, bool isHighlight)
+    {
+        Text = text;
+        IsHighlight = isHighlight;
+    }
+
+    public string Text { get; set; } = "";
+    public bool IsHighlight { get; set; }
 }

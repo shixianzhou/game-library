@@ -134,6 +134,11 @@
                                         <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFont}" FontSize="12" />
                                     </MenuItem.Icon>
                                 </MenuItem>
+                                <MenuItem Header="导入配置" Click="OnMenuImportConfig">
+                                    <MenuItem.Icon>
+                                        <TextBlock Text="&#xE8B5;" FontFamily="{StaticResource IconFont}" FontSize="12" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
                                 <MenuItem Header="设置" Click="OnMenuSettings">
                                     <MenuItem.Icon>
                                         <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="12" />

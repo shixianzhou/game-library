@@ -95,9 +95,28 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Margin="0,0,22,0">
-                                <TextBlock Style="{StaticResource FieldLabel}" Text="游戏名称 *" />
-                                <TextBox x:Name="NameBox" Style="{StaticResource InputTextBox}"
-                                         MaxLength="80" TextChanged="OnNameChanged" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="14" />
+                                        <ColumnDefinition Width="136" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="游戏名称 *" />
+                                        <TextBox x:Name="NameBox" Style="{StaticResource InputTextBox}"
+                                                 MaxLength="80" TextChanged="OnNameChanged" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="重点（可选）" />
+                                        <TextBox x:Name="HighlightBox" Style="{StaticResource InputTextBox}"
+                                                 MaxLength="8"
+                                                 ToolTip="最多 8 个字符，会作为标签显示在作者标签前面" />
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Style="{StaticResource FieldHint}" Margin="0,5,0,0"
+                                           Text="重点标签用来突出显示，例如赛季、版本阶段或状态；留空则不显示。" />
 
                                 <TextBlock Style="{StaticResource FieldLabel}" Text="描述（可选）"
                                            Margin="0,13,0,7" />

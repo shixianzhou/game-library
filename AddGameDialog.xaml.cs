@@ -48,6 +48,7 @@ public partial class AddGameDialog : Window
         DescriptionBox.Text = _draft.Description;
         AuthorBox.Text = _draft.Author;
         VersionBox.Text = _draft.Version;
+        HighlightBox.Text = _draft.Highlight;
         SingleDirectoryBox.Text = _draft.GameDirectory;
         SingleExecutableBox.Text = _draft.GameExecutable;
         ClientDirectoryBox.Text = _draft.ClientDirectory;
@@ -346,6 +347,7 @@ public partial class AddGameDialog : Window
         result.Description = DescriptionBox.Text.Trim();
         result.Author = AuthorBox.Text.Trim();
         result.Version = VersionBox.Text.Trim();
+        result.Highlight = HighlightBox.Text.Trim();
         error = "";
         return true;
     }
