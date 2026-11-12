@@ -30,6 +30,7 @@ public partial class SettingsWindow : Window
         ImageDirectoryBox.Text = _settings.Background.ImageDirectory;
         VideoDirectoryBox.Text = _settings.Background.VideoDirectory;
         SelectDisplayMode(_settings.Background.DisplayMode);
+        SelectRotation(_settings.Background.RotationSeconds);
         DynamicColorToggle.IsChecked = _settings.Background.DynamicColor;
         PauseToggle.IsChecked = _settings.Background.PauseOnDeactivated;
 
@@ -46,6 +47,7 @@ public partial class SettingsWindow : Window
             ImageDirectory = source.Background.ImageDirectory,
             VideoDirectory = source.Background.VideoDirectory,
             DisplayMode = source.Background.DisplayMode,
+            RotationSeconds = source.Background.RotationSeconds,
             DynamicColor = source.Background.DynamicColor,
             PauseOnDeactivated = source.Background.PauseOnDeactivated,
         },
@@ -108,6 +110,19 @@ public partial class SettingsWindow : Window
             }
         }
         DisplayModeCombo.SelectedIndex = 0;
+    }
+
+    private void SelectRotation(int seconds)
+    {
+        foreach (var item in RotationCombo.Items)
+        {
+            if (item is ComboBoxItem { Tag: string tag } && int.TryParse(tag, out var value) && value == seconds)
+            {
+                RotationCombo.SelectedItem = item;
+                return;
+            }
+        }
+        RotationCombo.SelectedIndex = 0;
     }
 
     // =====================================================================
@@ -261,6 +276,10 @@ public partial class SettingsWindow : Window
         _settings.Background.VideoDirectory = video;
         _settings.Background.DisplayMode =
             DisplayModeCombo.SelectedItem is ComboBoxItem { Content: string mode } ? mode : "填充";
+        _settings.Background.RotationSeconds =
+            RotationCombo.SelectedItem is ComboBoxItem { Tag: string tag } && int.TryParse(tag, out var seconds)
+                ? seconds
+                : 180;
         _settings.Background.DynamicColor = DynamicColorToggle.IsChecked == true;
         _settings.Background.PauseOnDeactivated = PauseToggle.IsChecked == true;
         ResultSettings = _settings;

@@ -63,6 +63,14 @@
                           MediaEnded="OnVideoMediaEnded"
                           MediaFailed="OnVideoMediaFailed" />
 
+            <!-- 视频切换时的短暂渐隐层 -->
+            <Rectangle x:Name="HeroVideoFade"
+                       Margin="0,0,0,-110"
+                       Fill="#000000"
+                       Opacity="0"
+                       IsHitTestVisible="False"
+                       Visibility="Collapsed" />
+
             <!-- 保证左侧文字可读的渐变 -->
             <Rectangle IsHitTestVisible="False" Margin="0,0,0,-110">
                 <Rectangle.Fill>
@@ -190,7 +198,7 @@
                         </ItemsControl.ItemsPanel>
                     </ItemsControl>
 
-                    <TextBlock x:Name="HeroDescription" Margin="0,15,0,0"
+                    <TextBlock x:Name="HeroDescription" Margin="0,15,0,0" HorizontalAlignment="Left"
                                MaxWidth="640" FontSize="14" LineHeight="25"
                                Foreground="#D6D3C4" TextWrapping="Wrap"
                                TextTrimming="CharacterEllipsis" MaxHeight="78" />
@@ -247,7 +255,7 @@
                             <DropShadowEffect BlurRadius="22" ShadowDepth="0" Opacity="0.55" Color="#000000" />
                         </TextBlock.Effect>
                     </TextBlock>
-                    <TextBlock Margin="0,15,0,0" MaxWidth="560" FontSize="14" LineHeight="25"
+                    <TextBlock Margin="0,15,0,0" MaxWidth="560" HorizontalAlignment="Left" FontSize="14" LineHeight="25"
                                Foreground="#D6D3C4" TextWrapping="Wrap"
                                Text="添加本地游戏的目录，客户端和服务端可以分开启动。封面、描述、版本信息都由你决定。" />
                     <Button Style="{StaticResource PrimaryButton}" Height="50" Padding="26,0"

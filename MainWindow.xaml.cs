@@ -20,7 +20,7 @@ public partial class MainWindow : Window
 {
     private readonly LibraryStore _store = new();
     private readonly DispatcherTimer _toastTimer = new() { Interval = TimeSpan.FromSeconds(3.2) };
-    private readonly DispatcherTimer _slideshowTimer = new() { Interval = TimeSpan.FromSeconds(12) };
+    private readonly DispatcherTimer _slideshowTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly Dictionary<string, BitmapSource> _backgroundImageCache = new(StringComparer.OrdinalIgnoreCase);
 
     private LibraryData _data = new();
@@ -29,10 +29,14 @@ public partial class MainWindow : Window
     private Color _accent = ColorExtractor.DefaultAccent;
     private int _imageIndex = -1;
     private int _videoIndex;
+    private string? _currentImagePath;
+    private string? _currentVideoPath;
     private bool _frontIsA = true;
     private bool _loaded;
     private bool _closing;
     private bool _videoFailed;
+    private bool _videoTransitioning;
+    private int _videoTransitionId;
     private string? _loadWarning;
     private double _windowedWidth;
     private double _windowedHeight;
@@ -418,7 +422,7 @@ public partial class MainWindow : Window
         {
             _data.Settings = settings;
             SaveLibrary();
-            ApplyBackground();
+            ApplyBackground(keepCurrent: true);
             ShowToast("设置已保存");
         }
         RefreshAll();
@@ -444,15 +448,44 @@ public partial class MainWindow : Window
     // 背景
     // =====================================================================
 
-    private void ApplyBackground()
+    private void ApplyBackground(bool keepCurrent = false)
     {
+        var previousKind = _background.Kind;
+        var previousDisplayMode = _background.DisplayMode;
+        var previousVideo = _currentVideoPath;
+        var previousImage = _currentImagePath;
+
         _slideshowTimer.Stop();
+        _slideshowTimer.Interval = TimeSpan.FromSeconds(
+            _data.Settings.Background.RotationSeconds is 180 or 300 or 600
+                ? _data.Settings.Background.RotationSeconds
+                : 180);
+
+        var next = BackgroundLibrary.Resolve(_data.Settings.Background);
+
+        // 只改了轮换时间这类设置时，继续用当前这张图/这段视频，不重新随机。
+        if (keepCurrent
+            && next.Kind == previousKind
+            && next.DisplayMode == previousDisplayMode
+            && CanKeepCurrent(next, previousVideo, previousImage))
+        {
+            _background = next;
+            StartRotation();
+            SetHeaderMediaBackground(next.Kind != BackgroundMediaKind.None);
+            return;
+        }
+
         _videoFailed = false;
+        _videoTransitioning = false;
+        _videoTransitionId++;
         _imageIndex = -1;
         _videoIndex = 0;
 
         try
         {
+            HeroVideo.BeginAnimation(OpacityProperty, null);
+            HeroVideo.Opacity = 1;
+            HeroVideo.Clock = null;
             HeroVideo.Stop();
             HeroVideo.Source = null;
         }
@@ -460,26 +493,32 @@ public partial class MainWindow : Window
         {
             // 某些解码器在关闭时会抛异常，忽略即可。
         }
+        HeroVideoFade.BeginAnimation(OpacityProperty, null);
+        HeroVideoFade.Opacity = 0;
+        HeroVideoFade.Visibility = Visibility.Collapsed;
         HeroVideo.Visibility = Visibility.Collapsed;
         HeroImageLayer.Visibility = Visibility.Collapsed;
         HeroTileRect.Visibility = Visibility.Collapsed;
         HeroImageA.Source = null;
         HeroImageB.Source = null;
+        _currentImagePath = null;
+        _currentVideoPath = null;
         HeroImageA.Opacity = 1;
         HeroImageB.Opacity = 0;
 
-        _background = BackgroundLibrary.Resolve(_data.Settings.Background);
+        _background = next;
         switch (_background.Kind)
         {
             case BackgroundMediaKind.Video:
                 HeroArtwork.Visibility = Visibility.Collapsed;
                 HeroVideo.Stretch = BackgroundLibrary.ToStretch(_background.DisplayMode);
                 HeroVideo.Visibility = Visibility.Visible;
+                _videoIndex = IndexOrRandom(_background.Videos, previousVideo);
                 PlayCurrentVideo();
                 break;
             case BackgroundMediaKind.Image:
                 HeroArtwork.Visibility = Visibility.Collapsed;
-                ShowImageLayer();
+                ShowImageLayer(previousImage);
                 break;
             default:
                 HeroArtwork.Visibility = Visibility.Visible;
@@ -487,7 +526,45 @@ public partial class MainWindow : Window
                 break;
         }
 
+        StartRotation();
         SetHeaderMediaBackground(_background.Kind != BackgroundMediaKind.None);
+    }
+
+    private static int PickRandomIndex(int count) =>
+        count > 1 ? Random.Shared.Next(count) : 0;
+
+    /// <summary>优先沿用上一次的素材；它已不在新列表里时才随机挑一个。</summary>
+    private static int IndexOrRandom(IReadOnlyList<string> items, string? preferred)
+    {
+        if (preferred != null)
+        {
+            for (var i = 0; i < items.Count; i++)
+            {
+                if (string.Equals(items[i], preferred, StringComparison.OrdinalIgnoreCase)) return i;
+            }
+        }
+        return PickRandomIndex(items.Count);
+    }
+
+    /// <summary>当前显示的素材是否仍然有效（保存设置时用来避免无谓的重新随机）。</summary>
+    private bool CanKeepCurrent(BackgroundSource next, string? video, string? image) => next.Kind switch
+    {
+        BackgroundMediaKind.Video =>
+            HeroVideo.Visibility == Visibility.Visible && video != null && next.Videos.Contains(video),
+        BackgroundMediaKind.Image =>
+            HeroImageLayer.Visibility == Visibility.Visible && image != null && next.Images.Contains(image),
+        _ => true,
+    };
+
+    /// <summary>按当前的可见图层与素材数量决定是否启动轮换计时器。</summary>
+    private void StartRotation()
+    {
+        _slideshowTimer.Stop();
+        var useVideo = HeroVideo.Visibility == Visibility.Visible;
+        var rotating = useVideo
+            ? _background.Videos.Count > 1
+            : HeroImageLayer.Visibility == Visibility.Visible && _background.Images.Count > 1;
+        if (rotating) _slideshowTimer.Start();
     }
 
     private void SetHeaderMediaBackground(bool active)
@@ -497,22 +574,25 @@ public partial class MainWindow : Window
             : (Brush)FindResource("BgBrush");
     }
 
-    private void ShowImageLayer()
+    private void ShowImageLayer(string? preferredPath = null)
     {
         if (_background.Images.Count == 0)
         {
+            _currentImagePath = null;
             HeroArtwork.Visibility = Visibility.Visible;
             return;
         }
 
         HeroImageLayer.Visibility = Visibility.Visible;
-        _imageIndex = 0;
+        _imageIndex = IndexOrRandom(_background.Images, preferredPath);
+        var path = _background.Images[_imageIndex];
+        _currentImagePath = path;
         if (BackgroundLibrary.IsTile(_background.DisplayMode))
         {
             HeroImageA.Visibility = Visibility.Collapsed;
             HeroImageB.Visibility = Visibility.Collapsed;
             HeroTileRect.Visibility = Visibility.Visible;
-            UpdateTileBrush(_background.Images[0]);
+            UpdateTileBrush(path);
         }
         else
         {
@@ -523,21 +603,29 @@ public partial class MainWindow : Window
             HeroImageB.Stretch = BackgroundLibrary.ToStretch(_background.DisplayMode);
             HeroImageA.BeginAnimation(OpacityProperty, null);
             HeroImageB.BeginAnimation(OpacityProperty, null);
-            SetImage(HeroImageA, _background.Images[0]);
+            SetImage(HeroImageA, path);
             HeroImageA.Opacity = 1;
             HeroImageB.Opacity = 0;
             _frontIsA = true;
         }
 
-        RefreshDynamicAccent(_background.Images[0]);
-        if (_background.Images.Count > 1) _slideshowTimer.Start();
+        RefreshDynamicAccent(path);
     }
 
     private void OnSlideshowTick(object? sender, EventArgs e)
     {
+        if (HeroVideo.Visibility == Visibility.Visible)
+        {
+            if (_background.Videos.Count < 2) return;
+            _videoIndex = (_videoIndex + 1) % _background.Videos.Count;
+            PlayCurrentVideo(true);
+            return;
+        }
+
         if (_background.Kind != BackgroundMediaKind.Image || _background.Images.Count < 2) return;
         _imageIndex = (_imageIndex + 1) % _background.Images.Count;
         var path = _background.Images[_imageIndex];
+        _currentImagePath = path;
 
         if (BackgroundLibrary.IsTile(_background.DisplayMode))
         {
@@ -556,9 +644,9 @@ public partial class MainWindow : Window
 
             var ease = new CubicEase { EasingMode = EasingMode.EaseInOut };
             incoming.BeginAnimation(OpacityProperty,
-                new DoubleAnimation(1, TimeSpan.FromMilliseconds(900)) { EasingFunction = ease });
+                new DoubleAnimation(1, TimeSpan.FromMilliseconds(500)) { EasingFunction = ease });
             outgoing.BeginAnimation(OpacityProperty,
-                new DoubleAnimation(0, TimeSpan.FromMilliseconds(900)) { EasingFunction = ease });
+                new DoubleAnimation(0, TimeSpan.FromMilliseconds(500)) { EasingFunction = ease });
             _frontIsA = !_frontIsA;
         }
 
@@ -616,14 +704,36 @@ public partial class MainWindow : Window
         HeroTileRect.Fill = brush;
     }
 
-    private void PlayCurrentVideo()
+    private void PlayCurrentVideo(bool fade = false)
     {
         if (_background.Videos.Count == 0) return;
         try
         {
             _videoFailed = false;
-            HeroVideo.Stop();
-            HeroVideo.Source = new Uri(_background.Videos[_videoIndex], UriKind.Absolute);
+            _currentVideoPath = _background.Videos[_videoIndex];
+            var uri = new Uri(_background.Videos[_videoIndex], UriKind.Absolute);
+            if (!fade)
+            {
+                HeroVideo.BeginAnimation(OpacityProperty, null);
+                HeroVideo.Opacity = 1;
+                StartLoopingVideo(uri);
+                return;
+            }
+
+            _videoTransitioning = true;
+            var token = ++_videoTransitionId;
+            FadeCover(1, 150, () =>
+            {
+                if (token != _videoTransitionId || _closing) return;
+                try
+                {
+                    StartLoopingVideo(uri);
+                }
+                catch
+                {
+                    OnVideoUnavailable();
+                }
+            });
         }
         catch
         {
@@ -631,20 +741,80 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 用 MediaTimeline 的重复行为在媒体管线内部循环，避免 MediaEnded → seek 回开头造成的卡顿。
+    /// </summary>
+    private void StartLoopingVideo(Uri uri)
+    {
+        HeroVideo.Stop();
+        HeroVideo.Clock = null;
+        var timeline = new MediaTimeline(uri) { RepeatBehavior = RepeatBehavior.Forever };
+        HeroVideo.Clock = timeline.CreateClock();
+    }
+
+    /// <summary>用一层黑色遮罩做短暂淡入淡出，遮住视频切换和回到开头的跳变。</summary>
+    private void FadeCover(double to, int milliseconds, Action? completed = null)
+    {
+        HeroVideoFade.Visibility = Visibility.Visible;
+        HeroVideoFade.BeginAnimation(OpacityProperty, null);
+        var animation = new DoubleAnimation(HeroVideoFade.Opacity, to, TimeSpan.FromMilliseconds(milliseconds))
+        {
+            FillBehavior = FillBehavior.Stop,
+        };
+        animation.Completed += (_, _) =>
+        {
+            HeroVideoFade.BeginAnimation(OpacityProperty, null);
+            HeroVideoFade.Opacity = to;
+            if (to <= 0) HeroVideoFade.Visibility = Visibility.Collapsed;
+            completed?.Invoke();
+        };
+        HeroVideoFade.BeginAnimation(OpacityProperty, animation);
+    }
+
+    /// <summary>时钟驱动的视频用控制器暂停/恢复；普通 Source 播放走 MediaElement 自身。</summary>
+    private void PauseVideoClock()
+    {
+        try { (HeroVideo.Clock?.Controller as ClockController)?.Pause(); } catch { }
+    }
+
+    private void ResumeVideoClock()
+    {
+        try { (HeroVideo.Clock?.Controller as ClockController)?.Resume(); } catch { }
+    }
+
     private void OnVideoMediaOpened(object sender, RoutedEventArgs e)
     {
         if (_background.Kind != BackgroundMediaKind.Video || _closing) return;
-        if (!(_data.Settings.Background.PauseOnDeactivated && !IsActive))
+        if (HeroVideo.Clock == null)
         {
-            try { HeroVideo.Play(); } catch { OnVideoUnavailable(); }
+            if (!(_data.Settings.Background.PauseOnDeactivated && !IsActive))
+            {
+                try { HeroVideo.Play(); } catch { OnVideoUnavailable(); }
+            }
         }
+        else if (_data.Settings.Background.PauseOnDeactivated && !IsActive)
+        {
+            PauseVideoClock();
+        }
+
+        if (_videoTransitioning) FadeCover(0, 240, () => _videoTransitioning = false);
     }
 
     private void OnVideoMediaEnded(object sender, RoutedEventArgs e)
     {
-        if (_background.Kind != BackgroundMediaKind.Video || _background.Videos.Count == 0) return;
-        _videoIndex = (_videoIndex + 1) % _background.Videos.Count;
-        PlayCurrentVideo();
+        if (_closing || _videoTransitioning || _background.Kind != BackgroundMediaKind.Video || _background.Videos.Count == 0) return;
+        if (HeroVideo.Clock != null) return; // 时钟重复播放由媒体管线自己接管
+
+        // 轮换节奏由「轮换时间」计时器控制：短片直接从头循环，切换新视频时才做渐隐。
+        try
+        {
+            HeroVideo.Position = TimeSpan.Zero;
+            HeroVideo.Play();
+        }
+        catch
+        {
+            OnVideoUnavailable();
+        }
     }
 
     private void OnVideoMediaFailed(object sender, ExceptionRoutedEventArgs e)
@@ -657,6 +827,12 @@ public partial class MainWindow : Window
     {
         if (_videoFailed) return;
         _videoFailed = true;
+        _videoTransitioning = false;
+        HeroVideo.BeginAnimation(OpacityProperty, null);
+        HeroVideo.Opacity = 1;
+        HeroVideoFade.BeginAnimation(OpacityProperty, null);
+        HeroVideoFade.Opacity = 0;
+        HeroVideoFade.Visibility = Visibility.Collapsed;
         HeroVideo.Visibility = Visibility.Collapsed;
         try { HeroVideo.Stop(); } catch { }
 
@@ -664,6 +840,7 @@ public partial class MainWindow : Window
         {
             HeroArtwork.Visibility = Visibility.Collapsed;
             ShowImageLayer();
+            StartRotation();
             ShowToast("视频背景无法播放，已切换为图片背景", true);
         }
         else
@@ -841,9 +1018,15 @@ public partial class MainWindow : Window
         if (!_loaded) return;
         if (_data.Settings.Background.PauseOnDeactivated &&
             _background.Kind == BackgroundMediaKind.Video &&
-            HeroVideo.Source != null)
+            (HeroVideo.Source != null || HeroVideo.Clock != null))
         {
-            try { HeroVideo.Play(); } catch { }
+            try
+            {
+                if (HeroVideo.Clock == null) HeroVideo.Play();
+                else ResumeVideoClock();
+            }
+            catch { }
+            StartRotation();
         }
     }
 
@@ -852,7 +1035,13 @@ public partial class MainWindow : Window
         if (_loaded && _data.Settings.Background.PauseOnDeactivated &&
             _background.Kind == BackgroundMediaKind.Video)
         {
-            try { HeroVideo.Pause(); } catch { }
+            try
+            {
+                if (HeroVideo.Clock == null) HeroVideo.Pause();
+                else PauseVideoClock();
+            }
+            catch { }
+            _slideshowTimer.Stop();
         }
     }
 

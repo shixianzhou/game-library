@@ -118,6 +118,8 @@ public sealed class LibraryStore
         data.Settings.Background ??= new BackgroundSettings();
         if (data.Settings.Background.DisplayMode is not ("填充" or "适应" or "拉伸" or "平铺"))
             data.Settings.Background.DisplayMode = "填充";
+        if (data.Settings.Background.RotationSeconds is not (180 or 300 or 600))
+            data.Settings.Background.RotationSeconds = 180;
         data.Version = 1;
 
         var seen = new HashSet<Guid>();

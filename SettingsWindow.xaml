@@ -157,7 +157,7 @@
                                 <StackPanel Margin="0,13">
                                     <TextBlock Style="{StaticResource SettingLabel}" Text="图片目录" />
                                     <TextBlock Style="{StaticResource SettingDesc}"
-                                               Text="目录中的 JPG / PNG / BMP / GIF 会轮播展示。" />
+                                               Text="目录中的 JPG / PNG / BMP / GIF 会轮播展示，每次启动随机挑选一张。" />
                                     <Grid Margin="0,9,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -182,7 +182,7 @@
                                 <StackPanel Margin="0,13">
                                     <TextBlock Style="{StaticResource SettingLabel}" Text="视频目录" />
                                     <TextBlock Style="{StaticResource SettingDesc}"
-                                               Text="视频优先于图片播放；目录为空时使用图片背景。" />
+                                               Text="视频优先于图片播放，每次启动随机挑选一个；目录为空时使用图片背景。" />
                                     <Grid Margin="0,9,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -220,6 +220,22 @@
                                         <ComboBoxItem Content="适应" />
                                         <ComboBoxItem Content="拉伸" />
                                         <ComboBoxItem Content="平铺" />
+                                    </ComboBox>
+                                </Grid>
+
+                                <Border Height="1" Background="#282D20" />
+
+                                <Grid Margin="0,14">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource SettingLabel}" Text="轮换时间" />
+                                        <TextBlock Style="{StaticResource SettingDesc}"
+                                                   Text="背景图片和视频的切换间隔；视频较短时会循环播放到该时间。" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="RotationCombo" Style="{StaticResource DarkComboBox}"
+                                              Width="156" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <ComboBoxItem Content="3 分钟" Tag="180" />
+                                        <ComboBoxItem Content="5 分钟" Tag="300" />
+                                        <ComboBoxItem Content="10 分钟" Tag="600" />
                                     </ComboBox>
                                 </Grid>
 

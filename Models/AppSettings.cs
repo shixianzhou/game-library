@@ -16,6 +16,9 @@ public sealed class BackgroundSettings
     /// <summary>填充 / 适应 / 拉伸 / 平铺。</summary>
     public string DisplayMode { get; set; } = "填充";
 
+    /// <summary>图片轮换间隔（秒），可选 15 / 30 / 45 / 60。</summary>
+    public int RotationSeconds { get; set; } = 180;
+
     /// <summary>从背景图提取主色，用在高亮文字、选中框和环境光上。</summary>
     public bool DynamicColor { get; set; } = true;
 
